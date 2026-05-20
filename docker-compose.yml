@@ -7,6 +7,18 @@ services:
     volumes:
       - ./session:/app/session
     restart: unless-stopped
+    depends_on:
+      - personal-agent
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+
+  personal-agent:
+    build: ../personal-agent
+    env_file: ../personal-agent/.env
+    restart: unless-stopped
     logging:
       driver: json-file
       options:

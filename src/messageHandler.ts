@@ -1,5 +1,5 @@
 import type { Client, Message } from 'whatsapp-web.js';
-import { askClaude } from './claudeClient';
+import { askAgent } from './personalAgentClient';
 
 const TRIGGER = '!ask ';
 
@@ -33,7 +33,7 @@ export async function handleMessage(_client: Client, message: Message): Promise<
     await chat.sendStateTyping();
 
     try {
-        const response = await askClaude(question, context, chatName);
+        const response = await askAgent(question, context, chatName);
         await message.reply(response);
     } finally {
         await chat.clearState();
