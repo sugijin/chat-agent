@@ -15,15 +15,28 @@ RUN npm run build
 # --- Runtime stage ---
 FROM node:20-slim
 
-# Install Chromium for puppeteer
+# Install only the system libs Chrome needs to run (not Chrome itself)
+# Chrome binary is downloaded by puppeteer during npm ci
 RUN apt-get update && apt-get install -y \
-    chromium \
+    ca-certificates \
     fonts-freefont-ttf \
+    libglib2.0-0 \
+    libnss3 \
+    libatk1.0-0 \
+    libatk-bridge2.0-0 \
+    libx11-6 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxext6 \
+    libxfixes3 \
+    libxrandr2 \
+    libgbm1 \
+    libxkbcommon0 \
+    libpango-1.0-0 \
+    libcairo2 \
+    libasound2 \
     --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
-
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
-ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
 WORKDIR /app
 
