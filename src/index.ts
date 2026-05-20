@@ -1,0 +1,68 @@
+import 'dotenv/config';
+import { Client, LocalAuth } from 'whatsapp-web.js';
+import qrcode from 'qrcode-terminal';
+import { handleMessage } from './messageHandler';
+
+const TRIGGER = '!ask ';
+
+const client = new Client({
+    authStrategy: new LocalAuth({ dataPath: './session' }),
+    puppeteer: {
+        headless: true,
+        args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-accelerated-2d-canvas',
+            '--no-zygote',
+            '--disable-gpu'
+        ],
+        ...(process.env.PUPPETEER_EXECUTABLE_PATH
+            ? { executablePath: process.env.PUPPETEER_EXECUTABLE_PATH }
+            : {})
+    }
+});
+
+client.on('qr', (qr) => {
+    console.log('\n=== Scan this QR code with WhatsApp ===\n');
+    qrcode.generate(qr, { small: true });
+    console.log('\nRunning on a cloud server? View logs with: docker logs <container-name>\n');
+});
+
+client.on('authenticated', () => {
+    console.log('Authenticated — session saved');
+});
+
+client.on('auth_failure', (msg) => {
+    console.error('Authentication failed:', msg);
+    process.exit(1);
+});
+
+client.on('ready', () => {
+    const info = client.info;
+    console.log(`\n✓ Connected as: ${info.pushname} (+${info.wid.user})`);
+    console.log(`✓ Type "${TRIGGER}<question>" in any chat to ask the agent\n`);
+});
+
+client.on('disconnected', (reason) => {
+    console.warn('Disconnected:', reason);
+    process.exit(1);
+});
+
+// message_create fires for messages you send AND receive
+client.on('message_create', async (message) => {
+    console.log(`[DEBUG] message_create: fromMe=${message.fromMe} body="${message.body.substring(0, 60)}"`);
+    if (!message.fromMe) return;
+    if (!message.body.toLowerCase().startsWith(TRIGGER.toLowerCase())) return;
+    await handleMessage(client, message).catch(console.error);
+});
+
+// Also listen for incoming messages (in case someone else types !ask)
+client.on('message', async (message) => {
+    console.log(`[DEBUG] message: fromMe=${message.fromMe} body="${message.body.substring(0, 60)}"`);
+});
+
+client.initialize().catch((err) => {
+    console.error('Failed to initialize:', err);
+    process.exit(1);
+});

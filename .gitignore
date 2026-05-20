@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.env
+session/
+.wwebjs_auth/
+.wwebjs_cache/
+*.js.map
+gh
