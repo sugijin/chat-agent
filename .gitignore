@@ -6,3 +6,7 @@ session/
 .wwebjs_cache/
 *.js.map
 gh
+personal-agent/node_modules/
+personal-agent/dist/
+personal-agent/.env
+personal-agent/scripts/google-auth.js

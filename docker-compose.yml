@@ -16,7 +16,7 @@ services:
         max-file: "3"
 
   personal-agent:
-    build: ../personal-agent
+    build: ./personal-agent
     env_file: ../personal-agent/.env
     restart: unless-stopped
     logging:
