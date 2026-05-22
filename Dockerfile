@@ -22,8 +22,11 @@ RUN apt-get update && apt-get install -y \
     fonts-freefont-ttf \
     libglib2.0-0 \
     libnss3 \
+    libnspr4 \
     libatk1.0-0 \
     libatk-bridge2.0-0 \
+    libcups2 \
+    libdbus-1-3 \
     libx11-6 \
     libxcomposite1 \
     libxdamage1 \
@@ -35,6 +38,8 @@ RUN apt-get update && apt-get install -y \
     libpango-1.0-0 \
     libcairo2 \
     libasound2 \
+    libxtst6 \
+    libxss1 \
     --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
