@@ -111,3 +111,4 @@ docker logs -f chat-agent  # Scan QR code from logs
 - The bot only responds to messages **you** send (not other people in the chat)
 - Keep the Terminal window open while using the bot locally
 - Your API key in `.env` is excluded from git by `.gitignore`
+- **Visibility**: Replies are sent as you from your WhatsApp account. The other party sees them as normal messages and cannot tell they were written by AI
