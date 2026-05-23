@@ -57,9 +57,12 @@ client.on('message_create', async (message) => {
     await handleMessage(client, message).catch(console.error);
 });
 
-// Also listen for incoming messages (in case someone else types !ask)
+// Group messages sent from phone arrive via 'message' with fromMe=true
 client.on('message', async (message) => {
     console.log(`[DEBUG] message: fromMe=${message.fromMe} body="${message.body.substring(0, 60)}"`);
+    if (!message.fromMe) return;
+    if (!message.body.toLowerCase().startsWith(TRIGGER.toLowerCase())) return;
+    await handleMessage(client, message).catch(console.error);
 });
 
 client.initialize().catch((err) => {
