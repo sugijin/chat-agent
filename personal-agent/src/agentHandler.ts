@@ -1,5 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
-import type { Tool, MessageParam } from '@anthropic-ai/sdk/resources/messages';
+import type { BetaToolUnion, BetaMessageParam } from '@anthropic-ai/sdk/resources/beta/messages/messages';
 import { loadContext } from './contextLoader';
 import { createCalendarEvent, listCalendarEvents } from './tools/calendar';
 import { createDraftEmail, sendEmail } from './tools/gmail';
@@ -7,7 +7,18 @@ import { createNotionTask } from './tools/notion';
 
 const anthropic = new Anthropic();
 
-const TOOLS: Tool[] = [
+const TOOLS: BetaToolUnion[] = [
+  {
+    type: 'web_search_20260209',
+    name: 'web_search',
+    max_uses: 5,
+    user_location: {
+      type: 'approximate',
+      city: 'Singapore',
+      country: 'US',
+      timezone: 'Asia/Singapore',
+    },
+  },
   {
     name: 'create_calendar_event',
     description: 'Create an event in Jin\'s Google Calendar.',
@@ -121,6 +132,14 @@ function classifyToolsUsed(toolNames: string[]): { agent: string; category: stri
   return { agent: 'Agent A Secretary', category: 'Daily Ops', outputSentTo: 'Notion Only' };
 }
 
+function extractText(content: Anthropic.Beta.Messages.BetaMessage['content']): string {
+  return content
+    .filter((b): b is Anthropic.Beta.Messages.BetaTextBlock => b.type === 'text')
+    .map(b => b.text)
+    .join('\n')
+    .trim() || 'Done.';
+}
+
 export interface AgentResult {
   reply: string;
   agent: string;
@@ -139,10 +158,11 @@ export async function handleAgentRequest(
 
 ${myContext ? `--- JIN'S CONTEXT ---\n${myContext}\n--- END CONTEXT ---\n` : ''}
 
-You have tools to take real actions: create calendar events, list calendar events, draft or send emails, and create Notion tasks.
+You have tools to take real actions: search the web for current information, create calendar events, list calendar events, draft or send emails, and create Notion tasks.
 
 IMPORTANT RULES:
 - WhatsApp context: keep replies concise and conversational
+- Use web_search for any question requiring current data (weather, news, prices, events)
 - Default to create_draft_email — only use send_email if Jin explicitly says "send"
 - Financial decisions: propose only, do not act without explicit approval
 - When uncertain about intent, ask Jin before acting
@@ -155,12 +175,12 @@ ${context || '(no previous messages)'}
 
 Request: ${question}`;
 
-  const messages: MessageParam[] = [{ role: 'user', content: userMessage }];
+  const messages: BetaMessageParam[] = [{ role: 'user', content: userMessage }];
   const toolsUsed: string[] = [];
   const MAX_ITERATIONS = 10;
 
   for (let i = 0; i < MAX_ITERATIONS; i++) {
-    const response = await anthropic.messages.create({
+    const response = await anthropic.beta.messages.create({
       model: process.env.CLAUDE_MODEL ?? 'claude-sonnet-4-6',
       max_tokens: 4096,
       system: systemPrompt,
@@ -168,18 +188,18 @@ Request: ${question}`;
       messages,
     });
 
-    if (response.stop_reason === 'end_turn') {
-      const textBlock = response.content.find(b => b.type === 'text');
-      const reply = textBlock?.type === 'text' ? textBlock.text : 'Done.';
+    if (response.stop_reason === 'end_turn' || response.stop_reason === 'pause_turn') {
+      const reply = extractText(response.content);
       const classification = classifyToolsUsed(toolsUsed);
       return { reply, ...classification };
     }
 
     if (response.stop_reason === 'tool_use') {
-      const toolResults: Anthropic.ToolResultBlockParam[] = [];
+      const toolResults: Anthropic.Beta.Messages.BetaToolResultBlockParam[] = [];
 
       for (const block of response.content) {
         if (block.type === 'tool_use') {
+          // Client-side tool: execute locally
           toolsUsed.push(block.name);
           let result: string;
           try {
@@ -189,10 +209,13 @@ Request: ${question}`;
           }
           toolResults.push({ type: 'tool_result', tool_use_id: block.id, content: result });
         }
+        // server_tool_use (web_search) blocks are handled server-side — no action needed
       }
 
       messages.push({ role: 'assistant', content: response.content });
-      messages.push({ role: 'user', content: toolResults });
+      if (toolResults.length > 0) {
+        messages.push({ role: 'user', content: toolResults });
+      }
     }
   }
 

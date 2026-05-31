@@ -3,6 +3,7 @@ version: '3.8'
 services:
   chat-agent:
     build: .
+    platform: linux/amd64
     env_file: .env
     volumes:
       - ./session:/app/session

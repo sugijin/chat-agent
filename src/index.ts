@@ -5,6 +5,8 @@ import { handleMessage } from './messageHandler';
 
 const TRIGGER = '!ask ';
 
+const processed = new Set<string>();
+
 const client = new Client({
     authStrategy: new LocalAuth({ dataPath: './session' }),
     puppeteer: {
@@ -49,21 +51,23 @@ client.on('disconnected', (reason) => {
     process.exit(1);
 });
 
-// message_create fires for messages you send AND receive
-client.on('message_create', async (message) => {
-    console.log(`[DEBUG] message_create: fromMe=${message.fromMe} body="${message.body.substring(0, 60)}"`);
+async function dispatch(event: string, message: { fromMe: boolean; body: string; id: { _serialized: string } }) {
+    console.log(`[DEBUG] ${event}: fromMe=${message.fromMe} id="${message.id._serialized}" body="${message.body.substring(0, 60)}"`);
     if (!message.fromMe) return;
     if (!message.body.toLowerCase().startsWith(TRIGGER.toLowerCase())) return;
-    await handleMessage(client, message).catch(console.error);
-});
+    const msgId = message.id._serialized;
+    if (processed.has(msgId)) {
+        console.log(`[DEBUG] skipping duplicate msgId=${msgId}`);
+        return;
+    }
+    processed.add(msgId);
+    setTimeout(() => processed.delete(msgId), 60_000);
+    console.log(`[DEBUG] dispatching msgId=${msgId}`);
+    await handleMessage(client, message as Parameters<typeof handleMessage>[1]).catch(console.error);
+}
 
-// Group messages sent from phone arrive via 'message' with fromMe=true
-client.on('message', async (message) => {
-    console.log(`[DEBUG] message: fromMe=${message.fromMe} body="${message.body.substring(0, 60)}"`);
-    if (!message.fromMe) return;
-    if (!message.body.toLowerCase().startsWith(TRIGGER.toLowerCase())) return;
-    await handleMessage(client, message).catch(console.error);
-});
+client.on('message_create', (msg) => dispatch('message_create', msg));
+client.on('message', (msg) => dispatch('message', msg));
 
 client.initialize().catch((err) => {
     console.error('Failed to initialize:', err);
