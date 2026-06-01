@@ -93,9 +93,11 @@ The session is saved automatically — you only need to scan once. After that, j
 
 To keep the bot running without leaving your computer on, deploy it to a cloud server using Docker.
 
+**Current deployment:** Google Cloud VM `personal-chat-bot-whatsapp` (e2-micro, us-central1-a) — free tier.
+
 ### Requirements
 
-- A server running Linux (e.g. a free-tier GCP or AWS VM)
+- A server running Linux (GCP e2-micro free tier works)
 - [Docker](https://docs.docker.com/get-docker/) installed
 
 ### Deploy
@@ -105,18 +107,39 @@ To keep the bot running without leaving your computer on, deploy it to a cloud s
 git clone https://github.com/sugijin/chat-agent.git
 cd chat-agent
 
-# 2. Add your API key
-cp .env.example .env
-# Edit .env and add your ANTHROPIC_API_KEY
+# 2. Add your env files
+# Create .env and personal-agent/.env with your API keys
 
-# 3. Start
+# 3. Build and start
 docker compose up -d --build
 
-# 4. Watch the logs and scan the QR code
+# 4. Watch logs and scan the QR code with WhatsApp (mobile)
 docker compose logs -f chat-agent
 ```
 
-Scan the QR code that appears in the logs. The bot will then run 24/7 in the background.
+Scan the QR code with your **phone** (Settings → Linked Devices → Link a Device). The session is saved — only needs scanning once.
+
+### Useful commands on the server
+
+```bash
+# Check status
+docker compose ps
+
+# View recent logs
+docker compose logs chat-agent --tail 20
+
+# Restart after code update
+git pull && docker compose up -d --build
+
+# Clear session and re-authenticate
+sudo rm -rf ~/chat-agent/session/session
+docker compose restart chat-agent
+docker compose logs chat-agent -f
+```
+
+### Important: avoid duplicate sessions
+
+Never run the bot locally on your Mac while it's also running on the cloud server. Two active sessions will both respond to every `!ask` message. Only keep one running at a time.
 
 ---
 
